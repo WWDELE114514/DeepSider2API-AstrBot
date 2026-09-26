@@ -28,6 +28,8 @@ _OPT_RE = re.compile(r"--(\w+)\s+(\S+)")
     "DeepSider 网关：查积分/邀请码、按模型生成图片、对话",
     "1.1.0",
 )
+
+
 class DeepSiderPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
@@ -90,6 +92,7 @@ class DeepSiderPlugin(Star):
         return default_model, text
 
     # -------------------------------------------------------------- 指令实现
+    @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.command("积分", alias={"ds积分", "ds余额", "余额", "账号", "ds账号"})
     async def credits(self, event: AstrMessageEvent):
         """查看账号池各账号剩余积分、套餐、状态、失败次数与总积分"""
@@ -123,6 +126,7 @@ class DeepSiderPlugin(Star):
         lines.append(f"\n合计（启用）：{total:.0f} 积分 / 共 {len(accounts)} 个账号")
         yield event.plain_result("\n".join(lines))
 
+    @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.command("模型", alias={"ds模型"})
     async def models(self, event: AstrMessageEvent):
         """列出模型：/模型 [chat|image|video]"""
@@ -159,6 +163,7 @@ class DeepSiderPlugin(Star):
             return
         yield event.plain_result("\n".join(lines))
 
+    @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.command("邀请", alias={"ds邀请", "邀请码"})
     async def invitation(self, event: AstrMessageEvent):
         """查询账号邀请码：/邀请 <账号邮箱或 id>"""
@@ -182,6 +187,7 @@ class DeepSiderPlugin(Star):
             f"已邀请：{data.get('invited_count') or 0} 人 ｜ 奖励积分：{data.get('reward_credits') or 0}"
         )
 
+    @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.command("生成图片", alias={"生图", "画图", "绘图", "ds生图"})
     async def generate_image(self, event: AstrMessageEvent):
         """生成图片：/生成图片 <模型botId> <描述>  或  /生成图片 <描述>
@@ -233,6 +239,7 @@ class DeepSiderPlugin(Star):
         chain.append(Comp.Plain(f"\n模型：{data.get('model')}"))
         yield event.chain_result(chain)
 
+    @filter.permission_type(filter.PermissionType.ADMIN)
     @filter.command("对话", alias={"ds对话", "ds聊", "ds问"})
     async def chat(self, event: AstrMessageEvent):
         """文本对话：/对话 <模型botId> <内容>  或  /对话 <内容>"""
