@@ -8,12 +8,12 @@
 - **指定账号与模型**生成图片
 - 与文本模型对话
 
-> 本插件通过 HTTP 调用本地运行的 **DeepSider2API 网关**（`deepsider2api.exe`），不直接访问 DeepSider。
+> 本插件通过 HTTP 调用本地运行的 **[DeepSider2API](https://github.com/WWDELE114514/DeepSider2API) 网关**（`deepsider2api.exe`），不直接访问 DeepSider。
 > 功能与同项目的 MCP server（`cmd/mcp`）一致，灵感来源即该 MCP。
 
 ## 前置
 
-1. 运行 DeepSider2API 网关（默认 `http://127.0.0.1:7863`）。
+1. 运行 [DeepSider2API](https://github.com/WWDELE114514/DeepSider2API) 网关（默认 `http://127.0.0.1:7863`）。
 2. AstrBot 与网关在**同一台机器**（或网络可达）。
 
 ## 安装
