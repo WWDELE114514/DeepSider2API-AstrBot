@@ -277,6 +277,87 @@ class DeepSiderPlugin(Star):
         content = (choices[0].get("message") or {}).get("content") or ""
         yield event.plain_result(content)
 
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @filter.command("总积分", alias={"ds总积分", "总余额"})
+    async def total_credits(self, event: AstrMessageEvent):
+        """只返回启用账号的总剩余积分"""
+        try:
+            data = await self._get("/api/panel/accounts")
+        except Exception as exc:  # noqa: BLE001
+            yield event.plain_result(f"查询失败：{exc}")
+            return
+        total = 0.0
+        enabled = 0
+        for acc in data.get("accounts", []):
+            if acc.get("enabled"):
+                total += float(acc.get("credit_remaining") or 0)
+                enabled += 1
+        yield event.plain_result(f"总剩余积分：{total:.0f}（{enabled} 个启用账号）")
+
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @filter.command("刷新", alias={"ds刷新"})
+    async def refresh(self, event: AstrMessageEvent):
+        """刷新指定账号的积分/套餐状态：/刷新 <账号邮箱或 id>"""
+        key = self._args(event)
+        if not key:
+            yield event.plain_result("用法：/刷新 <账号邮箱或 id>")
+            return
+        try:
+            data = await self._get("/api/panel/accounts")
+        except Exception as exc:  # noqa: BLE001
+            yield event.plain_result(f"查询失败：{exc}")
+            return
+
+        target = None
+        for acc in data.get("accounts", []):
+            if acc.get("id") == key or (acc.get("email") or "").lower() == key.lower():
+                target = acc
+                break
+        if not target:
+            yield event.plain_result(f"找不到账号：{key}")
+            return
+
+        try:
+            await self._post(f"/api/panel/accounts/{target['id']}/refresh", {})
+        except Exception as exc:  # noqa: BLE001
+            logger.error(f"[deepsider] 刷新账号失败: {exc}")
+            yield event.plain_result(f"刷新失败：{exc}")
+            return
+
+        try:
+            data2 = await self._get("/api/panel/accounts")
+            for acc in data2.get("accounts", []):
+                if acc.get("id") == target["id"]:
+                    yield event.plain_result(
+                        f"已刷新 {acc.get('email') or key}："
+                        f"{float(acc.get('credit_remaining') or 0):.0f} 积分 | {acc.get('plan_name') or '-'}"
+                    )
+                    return
+        except Exception:  # noqa: BLE001
+            pass
+        yield event.plain_result("已刷新。")
+
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @filter.command("密钥", alias={"ds密钥", "dskeys"})
+    async def keys(self, event: AstrMessageEvent):
+        """列出网关 API 密钥及各自用量"""
+        try:
+            data = await self._get("/api/panel/keys")
+        except Exception as exc:  # noqa: BLE001
+            yield event.plain_result(f"查询失败：{exc}")
+            return
+        keys = data.get("keys", [])
+        if not keys:
+            yield event.plain_result("还没有 API 密钥，可在网关面板「API 密钥」页创建。")
+            return
+        lines = ["DeepSider API 密钥："]
+        for key in keys:
+            status = "启用" if key.get("enabled") else "停用"
+            lines.append(
+                f"· {key.get('name') or '-'} | {key.get('prefix')}... | 用量 {key.get('usage') or 0} | {status}"
+            )
+        yield event.plain_result("\n".join(lines))
+
     async def terminate(self):
         """插件卸载 / 停用时调用。"""
         logger.info("[deepsider] 插件已停用")
