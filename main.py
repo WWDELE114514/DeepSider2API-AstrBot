@@ -358,6 +358,64 @@ class DeepSiderPlugin(Star):
             )
         yield event.plain_result("\n".join(lines))
 
+    @filter.permission_type(filter.PermissionType.ADMIN)
+    @filter.command("帮助", alias={"ds帮助", "dshelp", "ds菜单", "菜单"})
+    async def help(self, event: AstrMessageEvent):
+        """列出所有指令（QQ 下以合并转发形式发送）"""
+        sections = [
+            (
+                "📊 账号与积分",
+                [
+                    "/积分 — 各账号 积分/套餐/状态/失败次数 + 总积分",
+                    "/总积分 — 只回启用账号总积分",
+                    "/刷新 <邮箱或 id> — 刷新该账号积分/套餐状态",
+                    "/邀请 <邮箱或 id> — 查邀请码 / 邀请链接 / 邀请统计",
+                    "/密钥 — 列出网关 API 密钥及各自用量",
+                ],
+            ),
+            (
+                "🎨 模型与生成",
+                [
+                    "/模型 [chat|image|video] — 列出可用模型",
+                    "/生成图片 <模型> <描述> [选项] — 生成图片（模型可省略）",
+                    "  选项：--account 邮箱  --size 1024x1024  --ratio 1:1  --resolution 1k",
+                    "/对话 <模型> <内容> — 文本对话（模型可省略）",
+                ],
+            ),
+            (
+                "ℹ️ 说明",
+                [
+                    "模型填 DeepSider 的 botId，用 /模型 查看",
+                    "省略模型时使用配置里的默认模型",
+                    "所有指令仅管理员可用",
+                ],
+            ),
+        ]
+        text_all = "\n\n".join(f"【{t}】\n" + "\n".join(lines) for t, lines in sections)
+
+        try:
+            platform = event.get_platform_name()
+        except Exception:  # noqa: BLE001
+            platform = ""
+
+        if platform == "aiocqhttp":
+            uin = "10000"
+            try:
+                uin = str(event.get_self_id() or "10000")
+            except Exception:  # noqa: BLE001
+                pass
+            nodes = [
+                Comp.Node(
+                    uin=uin,
+                    name="DeepSider 网关",
+                    content=[Comp.Plain(f"【{t}】\n" + "\n".join(lines))],
+                )
+                for t, lines in sections
+            ]
+            yield event.chain_result([Comp.Nodes(nodes)])
+        else:
+            yield event.plain_result(text_all)
+
     async def terminate(self):
         """插件卸载 / 停用时调用。"""
         logger.info("[deepsider] 插件已停用")
