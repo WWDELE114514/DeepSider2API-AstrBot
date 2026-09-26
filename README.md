@@ -45,8 +45,8 @@ WebUI →「插件」→「DeepSider 网关」→ 配置：
 | `/积分`（`/ds积分` `/余额`） | 各账号剩余积分 + 总积分 |
 | `/模型 [chat\|image\|video]`（`/ds模型`） | 列出模型 |
 | `/邀请 <邮箱或 id>`（`/ds邀请`） | 查询该账号的邀请码 / 邀请链接 / 邀请统计 |
-| `/生图 <提示词> [--model botId] [--account 邮箱] [--size 1024x1024] [--ratio 1:1] [--resolution 1k]` | 生成图片 |
-| `/对话 <内容> [--model botId]`（`/ds聊`） | 文本对话 |
+| `/生成图片 <模型botId> <描述>`（`/生图` `/画图` `/绘图`） | 生成图片。可省略模型（用默认模型）；支持追加 `--account 邮箱` `--size 1024x1024` `--ratio 1:1` `--resolution 1k` |
+| `/对话 <模型botId> <内容>`（`/ds聊`） | 文本对话。可省略模型（用默认 `auto`） |
 
 ### 示例
 
@@ -54,9 +54,9 @@ WebUI →「插件」→「DeepSider 网关」→ 配置：
 /积分
 /模型 image
 /邀请 qweasdzxc8620@qq.com
-/生图 一只戴着帽子的橘猫，赛博朋克风格 --model pro/gemini-3.1-flash-lite-image --account qweasdzxc8620@qq.com
-/生图 赛博朋克城市 --size 1792x1024
-/对话 用一句话介绍你自己 --model auto
+/生成图片 pro/gemini-3.1-flash-lite-image 一只戴着帽子的橘猫，赛博朋克风格
+/生成图片 赛博朋克城市 --size 1792x1024
+/对话 auto 用一句话介绍你自己
 ```
 
 > 图片由网关**转存**后以永久链接返回（`image.persist=true` 时），避免 DeepSider 的 24 小时失效。

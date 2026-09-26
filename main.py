@@ -4,7 +4,7 @@
   - 查询账号池各账号的剩余积分 / 总积分
   - 列出可用模型（chat / image / video）
   - 查询指定账号的专属邀请码
-  - 指定账号与模型生成图片
+  - 指定模型生成图片
   - 与文本模型对话
 
 灵感与功能对齐自同项目的 MCP server（DeepSider2API 仓库 cmd/mcp）。
@@ -25,8 +25,8 @@ _OPT_RE = re.compile(r"--(\w+)\s+(\S+)")
 @register(
     "deepsider",
     "WWDELE114514",
-    "DeepSider 网关：查积分/邀请码、按账号与模型生成图片、对话",
-    "1.0.0",
+    "DeepSider 网关：查积分/邀请码、按模型生成图片、对话",
+    "1.1.0",
 )
 class DeepSiderPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -60,19 +60,34 @@ class DeepSiderPlugin(Star):
             return resp.json()
 
     @staticmethod
-    def _rest(event: AstrMessageEvent, cmd: str) -> str:
-        """去掉消息开头的指令词，返回剩余参数。"""
+    def _args(event: AstrMessageEvent) -> str:
+        """去掉消息开头的指令词（含别名），返回后面的参数文本。"""
         text = (event.message_str or "").strip()
-        for prefix in (f"/{cmd}", cmd):
-            if text.startswith(prefix):
-                return text[len(prefix):].strip()
-        return text
+        if text.startswith("/"):
+            text = text[1:]
+        parts = text.split(None, 1)
+        return parts[1].strip() if len(parts) > 1 else ""
 
     @staticmethod
     def _parse_opts(raw: str):
         """解析 `--key value` 选项，返回 (剩余文本, {key: value})。"""
         opts = {m.group(1): m.group(2) for m in _OPT_RE.finditer(raw)}
         return _OPT_RE.sub("", raw).strip(), opts
+
+    @staticmethod
+    def _split_model_prompt(text: str, default_model: str):
+        """支持 `模型 描述` 或 `描述`（用默认模型）。
+
+        botId 形如 `pro/gemini-3.1-flash-lite-image`（ASCII 且含 `/`），
+        因此仅当第一个词是 ASCII 且含 `/` 时才当作模型，否则整段视为描述。
+        """
+        parts = text.split(None, 1)
+        if parts:
+            first = parts[0]
+            if "/" in first and first.isascii():
+                prompt = parts[1].strip() if len(parts) > 1 else ""
+                return first, prompt
+        return default_model, text
 
     # -------------------------------------------------------------- 指令实现
     @filter.command("积分", alias={"ds积分", "ds余额", "余额"})
@@ -105,7 +120,7 @@ class DeepSiderPlugin(Star):
     @filter.command("模型", alias={"ds模型"})
     async def models(self, event: AstrMessageEvent):
         """列出模型：/模型 [chat|image|video]"""
-        want = self._rest(event, "模型").lower() or "all"
+        want = self._args(event).lower() or "all"
         try:
             data = await self._get("/api/panel/models")
         except Exception as exc:  # noqa: BLE001
@@ -141,7 +156,7 @@ class DeepSiderPlugin(Star):
     @filter.command("邀请", alias={"ds邀请", "邀请码"})
     async def invitation(self, event: AstrMessageEvent):
         """查询账号邀请码：/邀请 <账号邮箱或 id>"""
-        account = self._rest(event, "邀请")
+        account = self._args(event)
         if not account:
             yield event.plain_result("用法：/邀请 <账号邮箱或 id>")
             return
@@ -161,29 +176,39 @@ class DeepSiderPlugin(Star):
             f"已邀请：{data.get('invited_count') or 0} 人 ｜ 奖励积分：{data.get('reward_credits') or 0}"
         )
 
-    @filter.command("生图", alias={"ds生图", "画图", "绘图"})
-    async def image(self, event: AstrMessageEvent):
-        """生成图片：/生图 <提示词> [--model botId] [--account 邮箱] [--size 1024x1024] [--ratio 1:1] [--resolution 1k]"""
-        raw = self._rest(event, "生图")
+    @filter.command("生成图片", alias={"生图", "画图", "绘图", "ds生图"})
+    async def generate_image(self, event: AstrMessageEvent):
+        """生成图片：/生成图片 <模型botId> <描述>  或  /生成图片 <描述>
+
+        可追加选项：--account 邮箱  --size 1024x1024  --ratio 1:1  --resolution 1k
+        """
+        raw = self._args(event)
         if not raw:
             yield event.plain_result(
-                "用法：/生图 <提示词> [--model botId] [--account 邮箱] [--size 1024x1024]"
+                "用法：/生成图片 <模型botId> <描述>\n"
+                "示例：/生成图片 pro/gemini-3.1-flash-lite-image 一只戴着帽子的橘猫\n"
+                "也可省略模型（用默认模型）：/生成图片 赛博朋克城市"
             )
             return
-        prompt, opts = self._parse_opts(raw)
+
+        text, opts = self._parse_opts(raw)
+        default_model = self.config.get("default_image_model") or "pro/gemini-3.1-flash-lite-image"
+        model, prompt = self._split_model_prompt(text, default_model)
+        if opts.get("model"):
+            model = opts["model"]
         if not prompt:
-            yield event.plain_result("请提供图片描述。")
+            yield event.plain_result("请提供图片描述。示例：/生成图片 " + model + " 一只橘猫")
             return
 
         body = {
             "prompt": prompt,
-            "model": opts.get("model") or self.config.get("default_image_model") or "",
+            "model": model,
             "account": opts.get("account", ""),
             "size": opts.get("size", ""),
             "ratio": opts.get("ratio", ""),
             "resolution": opts.get("resolution", ""),
         }
-        yield event.plain_result("🎨 正在生成图片，请稍候…")
+        yield event.plain_result(f"🎨 正在用 {model} 生成图片，请稍候…")
         try:
             data = await self._post("/api/panel/generate", body, timeout=300)
         except Exception as exc:  # noqa: BLE001
@@ -191,9 +216,8 @@ class DeepSiderPlugin(Star):
             yield event.plain_result(f"生成失败：{exc}")
             return
 
-        items = data.get("data") or []
         chain = []
-        for item in items:
+        for item in data.get("data") or []:
             url = item.get("url")
             if url:
                 chain.append(Comp.Image.fromURL(url))
@@ -205,18 +229,25 @@ class DeepSiderPlugin(Star):
 
     @filter.command("对话", alias={"ds对话", "ds聊", "ds问"})
     async def chat(self, event: AstrMessageEvent):
-        """文本对话：/对话 <内容> [--model botId]"""
-        raw = self._rest(event, "对话")
+        """文本对话：/对话 <模型botId> <内容>  或  /对话 <内容>"""
+        raw = self._args(event)
         if not raw:
-            yield event.plain_result("用法：/对话 <内容> [--model botId]")
+            yield event.plain_result(
+                "用法：/对话 <内容>（默认模型 auto）\n示例：/对话 用一句话介绍你自己"
+            )
             return
-        prompt, opts = self._parse_opts(raw)
+
+        text, opts = self._parse_opts(raw)
+        default_model = self.config.get("default_chat_model") or "auto"
+        model, prompt = self._split_model_prompt(text, default_model)
+        if opts.get("model"):
+            model = opts["model"]
         if not prompt:
             yield event.plain_result("请提供对话内容。")
             return
 
         body = {
-            "model": opts.get("model") or self.config.get("default_chat_model") or "auto",
+            "model": model,
             "messages": [{"role": "user", "content": prompt}],
         }
         try:
