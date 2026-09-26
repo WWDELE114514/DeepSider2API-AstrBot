@@ -1,0 +1,27 @@
+{
+  "base_url": {
+    "description": "DeepSider2API 网关地址",
+    "type": "string",
+    "default": "http://127.0.0.1:7863",
+    "hint": "deepsider2api.exe 运行的 HTTP 地址（默认端口 7863）"
+  },
+  "api_key": {
+    "description": "网关管理密钥",
+    "type": "string",
+    "default": "change_me",
+    "secret": true,
+    "hint": "对应 config.json 里的 api_key"
+  },
+  "default_image_model": {
+    "description": "默认图片模型 botId",
+    "type": "string",
+    "default": "pro/gemini-3.1-flash-lite-image",
+    "hint": "使用 /生图 未指定 --model 时使用"
+  },
+  "default_chat_model": {
+    "description": "默认文本模型 botId",
+    "type": "string",
+    "default": "auto",
+    "hint": "使用 /对话 未指定 --model 时使用；auto 为网关编排"
+  }
+}

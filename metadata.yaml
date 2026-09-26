@@ -1,0 +1,7 @@
+name: astrbot_plugin_deepsider
+display_name: DeepSider 网关
+short_desc: 查询 DeepSider 账号积分/邀请码，按账号与模型生成图片、对话
+desc: 通过 DeepSider2API 网关查询账号池积分、模型列表、专属邀请码，并可指定账号与模型生成图片或进行文本对话。
+version: v1.0.0
+author: WWDELE114514
+repo: https://github.com/WWDELE114514/DeepSider2API-AstrBot
