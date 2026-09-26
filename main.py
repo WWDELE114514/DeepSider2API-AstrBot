@@ -90,9 +90,9 @@ class DeepSiderPlugin(Star):
         return default_model, text
 
     # -------------------------------------------------------------- 指令实现
-    @filter.command("积分", alias={"ds积分", "ds余额", "余额"})
+    @filter.command("积分", alias={"ds积分", "ds余额", "余额", "账号", "ds账号"})
     async def credits(self, event: AstrMessageEvent):
-        """查看账号池各账号剩余积分与总积分"""
+        """查看账号池各账号剩余积分、套餐、状态、失败次数与总积分"""
         try:
             data = await self._get("/api/panel/accounts")
         except Exception as exc:  # noqa: BLE001
@@ -111,7 +111,13 @@ class DeepSiderPlugin(Star):
             credit = float(acc.get("credit_remaining") or 0)
             status = "启用" if acc.get("enabled") else "停用"
             name = acc.get("email") or acc.get("name") or "-"
-            lines.append(f"· {name} | {credit:.0f} | {acc.get('plan_name') or '-'} | {status}")
+            extra = ""
+            fails = int(acc.get("fail_count") or 0)
+            if fails > 0:
+                extra = f" | 失败{fails}"
+            lines.append(
+                f"· {name} | {credit:.0f} | {acc.get('plan_name') or '-'} | {status}{extra}"
+            )
             if acc.get("enabled"):
                 total += credit
         lines.append(f"\n合计（启用）：{total:.0f} 积分 / 共 {len(accounts)} 个账号")
